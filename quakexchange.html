@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quake 2 Currency Converter | AZN & GBP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Style for the video background */
+        #bg-video {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            z-index: -100;
+            object-fit: cover;
+            filter: brightness(0.4);
+        }
+        /* Custom styles for input fields */
+        .currency-input {
+            -moz-appearance: textfield;
+        }
+        .currency-input::-webkit-outer-spin-button,
+        .currency-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        /* Custom focus styles */
+        .form-input:focus, .swap-button:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.6); /* A blue-ish glow */
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+
+    <!-- Background Video -->
+    <video autoplay muted loop id="bg-video">
+        <!-- Corrected the video source again to a verified, working link. -->
+        <source src="https://archive.org/download/quake2-gameplay/Quake2-gameplay.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+
+    <!-- Main Content -->
+    <div class="flex items-center justify-center min-h-screen p-4">
+        
+        <div class="w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-md rounded-2xl shadow-2xl p-6 md:p-8 border border-gray-700">
+            
+            <header class="text-center mb-6">
+                <h1 class="text-3xl font-bold text-amber-400">Currency Converter</h1>
+                <p class="text-gray-400 mt-2">Convert between Azerbaijani Manat (AZN) and British Pound (GBP)</p>
+            </header>
+
+            <main>
+                <!-- Loading/Error State -->
+                <div id="status" class="text-center text-gray-400 mb-4 h-6"></div>
+
+                <!-- Currency Conversion Form -->
+                <div class="space-y-4 relative">
+                    <!-- AZN Input Group -->
+                    <div id="azn-group">
+                        <label for="azn" class="block text-sm font-medium text-gray-300 mb-1">AZN</label>
+                        <div class="relative">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                <span class="text-gray-400 text-lg">₼</span>
+                            </div>
+                            <input type="number" id="azn" class="form-input currency-input w-full pl-10 pr-4 py-3 bg-gray-800 border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition duration-300" placeholder="0.00">
+                        </div>
+                    </div>
+
+                    <!-- Swap Button -->
+                    <div class="flex justify-center">
+                        <button id="swap-button" class="swap-button p-2 bg-gray-700 hover:bg-amber-600 rounded-full text-white transition-transform duration-300 ease-in-out hover:rotate-180 focus:ring-2 focus:ring-amber-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 12l-4-4m4 4l4-4m6 8v-12m0 12l-4-4m4 4l4-4" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- GBP Input Group -->
+                    <div id="gbp-group">
+                        <label for="gbp" class="block text-sm font-medium text-gray-300 mb-1">GBP</label>
+                        <div class="relative">
+                           <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                <span class="text-gray-400 text-lg">£</span>
+                            </div>
+                            <input type="number" id="gbp" class="form-input currency-input w-full pl-10 pr-4 py-3 bg-gray-800 border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition duration-300" placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 text-center">
+                    <button id="plan-trip-button" class="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-bold py-3 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-opacity-75 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        ✨ Plan a Trip!
+                    </button>
+                </div>
+
+                <!-- Gemini API Result Section -->
+                <div id="trip-plan-container" class="mt-6 p-4 bg-gray-800 rounded-lg border border-gray-700" style="display: none;">
+                    <h3 class="text-xl font-bold text-amber-400 mb-2">Your Trip Plan ✨</h3>
+                    <div id="trip-plan-result" class="text-gray-300 whitespace-pre-wrap"></div>
+                    <div id="trip-plan-loader" class="text-center py-4" style="display: none;">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400 mx-auto"></div>
+                        <p class="mt-2 text-gray-400">Planning your adventure...</p>
+                    </div>
+                </div>
+
+
+                <footer class="text-center mt-6">
+                    <p id="rate-info" class="text-xs text-gray-500 h-4"></p>
+                </footer>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const aznInput = document.getElementById('azn');
+            const gbpInput = document.getElementById('gbp');
+            const swapButton = document.getElementById('swap-button');
+            const statusDiv = document.getElementById('status');
+            const rateInfoDiv = document.getElementById('rate-info');
+            const planTripButton = document.getElementById('plan-trip-button');
+            const tripPlanContainer = document.getElementById('trip-plan-container');
+            const tripPlanResult = document.getElementById('trip-plan-result');
+            const tripPlanLoader = document.getElementById('trip-plan-loader');
+
+            let aznToGbpRate = 0;
+            let lastEdited = null; // To track the last user-edited input
+
+            // API URL to get latest rates relative to AZN
+            const apiUrl = 'https://open.er-api.com/v6/latest/AZN';
+            
+            const fetchRates = async () => {
+                statusDiv.textContent = 'Fetching latest rates...';
+                try {
+                    const response = await fetch(apiUrl);
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    const data = await response.json();
+                    if (data.result === 'success' && data.rates.GBP) {
+                        aznToGbpRate = data.rates.GBP;
+                        updateRateInfo();
+                        statusDiv.textContent = 'Rates updated!';
+                        setTimeout(() => statusDiv.textContent = '', 2000);
+                    } else {
+                        throw new Error('Could not find GBP rate in API response.');
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch exchange rates:', error);
+                    statusDiv.textContent = 'Error fetching rates. Using fallback.';
+                    // A fallback rate in case the API fails
+                    aznToGbpRate = 0.46; 
+                    updateRateInfo();
+                }
+            };
+            
+            const updateRateInfo = () => {
+                if(aznToGbpRate > 0) {
+                     rateInfoDiv.textContent = `1 AZN = ${aznToGbpRate.toFixed(4)} GBP | 1 GBP = ${(1 / aznToGbpRate).toFixed(4)} AZN`;
+                }
+            };
+
+            const formatValue = (value) => {
+                // To avoid floating point inaccuracies and format to 2 decimal places
+                return Math.round(value * 100) / 100;
+            };
+
+            const updatePlanButtonState = () => {
+                const aznValue = parseFloat(aznInput.value);
+                const gbpValue = parseFloat(gbpInput.value);
+                if ((!isNaN(aznValue) && aznValue > 0) || (!isNaN(gbpValue) && gbpValue > 0)) {
+                    planTripButton.disabled = false;
+                } else {
+                    planTripButton.disabled = true;
+                }
+            };
+
+            const convert = (sourceInput, targetInput, rate, isUserInput) => {
+                 const amount = parseFloat(sourceInput.value);
+                if (!isNaN(amount) && amount >= 0) {
+                    targetInput.value = formatValue(amount * rate);
+                    if(isUserInput) {
+                        lastEdited = sourceInput.id;
+                    }
+                } else {
+                    targetInput.value = '';
+                }
+                updatePlanButtonState();
+            };
+
+            aznInput.addEventListener('input', () => {
+                if (aznToGbpRate > 0) {
+                   convert(aznInput, gbpInput, aznToGbpRate, true);
+                }
+            });
+
+            gbpInput.addEventListener('input', () => {
+                if (aznToGbpRate > 0) {
+                    convert(gbpInput, aznInput, 1 / aznToGbpRate, true);
+                }
+            });
+
+            swapButton.addEventListener('click', () => {
+                // Simple swap of values and placeholders
+                const tempValue = aznInput.value;
+                aznInput.value = gbpInput.value;
+                gbpInput.value = tempValue;
+
+                // Determine which field to recalculate from after the swap
+                if (lastEdited === 'azn' && gbpInput.value) {
+                    convert(gbpInput, aznInput, 1 / aznToGbpRate, false);
+                    lastEdited = 'gbp';
+                } else if (lastEdited === 'gbp' && aznInput.value) {
+                     convert(aznInput, gbpInput, aznToGbpRate, false);
+                     lastEdited = 'azn';
+                } else if (aznInput.value) { // Fallback if lastEdited is not set
+                     convert(aznInput, gbpInput, aznToGbpRate, false);
+                } else if (gbpInput.value) {
+                     convert(gbpInput, aznInput, 1 / aznToGbpRate, false);
+                }
+                 updatePlanButtonState();
+            });
+
+            // --- Gemini API Integration ---
+            planTripButton.addEventListener('click', async () => {
+                tripPlanContainer.style.display = 'block';
+                tripPlanResult.textContent = '';
+                tripPlanLoader.style.display = 'block';
+                planTripButton.disabled = true;
+
+                let amount, currency, country;
+
+                const aznValue = parseFloat(aznInput.value);
+                const gbpValue = parseFloat(gbpInput.value);
+
+                // Determine the destination currency based on the last edited field or which has a value
+                if (lastEdited === 'azn' && gbpValue > 0) {
+                    amount = gbpValue.toFixed(2);
+                    currency = 'GBP';
+                    country = 'the UK';
+                } else if (lastEdited === 'gbp' && aznValue > 0) {
+                    amount = aznValue.toFixed(2);
+                    currency = 'AZN';
+                    country = 'Azerbaijan';
+                } else if (gbpValue > 0) { // Fallback
+                    amount = gbpValue.toFixed(2);
+                    currency = 'GBP';
+                    country = 'the UK';
+                } else { // Fallback
+                    amount = aznValue.toFixed(2);
+                    currency = 'AZN';
+                    country = 'Azerbaijan';
+                }
+                
+                const systemPrompt = "You are a helpful and creative travel planner. You provide concise, exciting, and practical travel itineraries based on a given budget. Format the response with clear headings for Accommodation, Food, and Activities.";
+                const userQuery = `I have a budget of ${amount} ${currency}. Suggest a fun, detailed weekend trip itinerary in ${country}. Include realistic ideas for accommodation, food, and activities that would fit within this budget.`;
+
+                const apiKey = ""; // Canvas will provide this
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                };
+
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API call failed with status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    const candidate = result.candidates?.[0];
+
+                    if (candidate && candidate.content?.parts?.[0]?.text) {
+                        tripPlanResult.textContent = candidate.content.parts[0].text;
+                    } else {
+                        throw new Error('Unexpected API response structure.');
+                    }
+                } catch (error) {
+                    console.error('Gemini API Error:', error);
+                    tripPlanResult.textContent = 'Sorry, I couldn\'t come up with a plan right now. Please try again later.';
+                } finally {
+                    tripPlanLoader.style.display = 'none';
+                    planTripButton.disabled = false;
+                }
+            });
+
+
+            // Initial fetch of rates
+            fetchRates();
+        });
+    </script>
+</body>
+</html>
