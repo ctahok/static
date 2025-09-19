@@ -1,0 +1,2 @@
+# static
+My Static pages
